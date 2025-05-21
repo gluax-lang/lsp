@@ -6,6 +6,10 @@ Made specifically for GLuaX, but can be used for anything really.
 
 It's a work in progress, and not all features are implemented yet.
 
+## Installation
+
+`go get -u github.com/gluax-lang/lsp@latest`
+
 ## Example
 
 ```go
