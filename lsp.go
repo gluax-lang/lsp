@@ -173,9 +173,10 @@ func NewTextDocumentSyncOptions(o TextDocumentSyncOptions) TextDocumentSync { re
 // --- ServerCapabilities ----------------------------------------------------
 
 type ServerCapabilities struct {
-	HoverProvider     HoverProvider     `json:"hoverProvider,omitempty"`
-	TextDocumentSync  TextDocumentSync  `json:"textDocumentSync,omitempty"`
-	InlayHintProvider InlayHintProvider `json:"inlayHintProvider,omitempty"`
+	HoverProvider      HoverProvider     `json:"hoverProvider,omitempty"`
+	TextDocumentSync   TextDocumentSync  `json:"textDocumentSync,omitempty"`
+	InlayHintProvider  InlayHintProvider `json:"inlayHintProvider,omitempty"`
+	CompletionProvider CompletionOptions `json:"completionProvider,omitempty"`
 }
 
 // -- initialize -------------------------------------------------------------
@@ -286,6 +287,65 @@ type InlayHintParams struct {
 	Range        Range                  `json:"range"`
 }
 
+// -- completion -------------------------------------------------------------
+
+type CompletionItemKind int
+
+const (
+	CompletionItemKindText          CompletionItemKind = 1
+	CompletionItemKindMethod        CompletionItemKind = 2
+	CompletionItemKindFunction      CompletionItemKind = 3
+	CompletionItemKindConstructor   CompletionItemKind = 4
+	CompletionItemKindField         CompletionItemKind = 5
+	CompletionItemKindVariable      CompletionItemKind = 6
+	CompletionItemKindClass         CompletionItemKind = 7
+	CompletionItemKindInterface     CompletionItemKind = 8
+	CompletionItemKindModule        CompletionItemKind = 9
+	CompletionItemKindProperty      CompletionItemKind = 10
+	CompletionItemKindUnit          CompletionItemKind = 11
+	CompletionItemKindValue         CompletionItemKind = 12
+	CompletionItemKindEnum          CompletionItemKind = 13
+	CompletionItemKindKeyword       CompletionItemKind = 14
+	CompletionItemKindSnippet       CompletionItemKind = 15
+	CompletionItemKindColor         CompletionItemKind = 16
+	CompletionItemKindFile          CompletionItemKind = 17
+	CompletionItemKindReference     CompletionItemKind = 18
+	CompletionItemKindFolder        CompletionItemKind = 19
+	CompletionItemKindEnumMember    CompletionItemKind = 20
+	CompletionItemKindConstant      CompletionItemKind = 21
+	CompletionItemKindStruct        CompletionItemKind = 22
+	CompletionItemKindEvent         CompletionItemKind = 23
+	CompletionItemKindOperator      CompletionItemKind = 24
+	CompletionItemKindTypeParameter CompletionItemKind = 25
+)
+
+type CompletionItem struct {
+	Label         string              `json:"label"`
+	Kind          *CompletionItemKind `json:"kind,omitempty"`
+	Detail        *string             `json:"detail,omitempty"`
+	Documentation *MarkupContent      `json:"documentation,omitempty"`
+	FilterText    *string             `json:"filterText,omitempty"`
+	InsertText    *string             `json:"insertText,omitempty"`
+	SortText      *string             `json:"sortText,omitempty"`
+}
+
+type CompletionParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Position     Position               `json:"position"`
+}
+
+type CompletionList struct {
+	IsIncomplete bool             `json:"isIncomplete"`
+	Items        []CompletionItem `json:"items"`
+}
+
+type CompletionOptions struct {
+	WorkDoneProgressOptions
+	TriggerCharacters   []string `json:"triggerCharacters,omitempty"`
+	AllCommitCharacters []string `json:"allCommitCharacters,omitempty"`
+	ResolveProvider     bool     `json:"resolveProvider,omitempty"`
+}
+
 // ---------------------------------------------------------------------------
 //   diagnostics
 // ---------------------------------------------------------------------------
@@ -347,6 +407,10 @@ type Hoverer interface {
 
 type InlayHinter interface {
 	InlayHint(p *InlayHintParams) ([]InlayHint, error)
+}
+
+type Completer interface {
+	Complete(p *CompletionParams) (*CompletionList, error)
 }
 
 // ========================== Server engine ==================================
@@ -484,6 +548,8 @@ func (s *Server) dispatch(req *rpcRequest) {
 		s.handleHover(req)
 	case "textDocument/inlayHint":
 		s.handleInlayHint(req)
+	case "textDocument/completion":
+		s.handleCompletion(req)
 	default:
 		if req.ID != nil {
 			s.RespondErr(req.ID, codeMethodNotFound, "unknown method: "+req.Method)
@@ -623,6 +689,26 @@ func (s *Server) handleInlayHint(req *rpcRequest) {
 		}
 	} else {
 		s.RespondOK(req.ID, []InlayHint{}) // handler doesnt implement it
+	}
+}
+
+func (s *Server) handleCompletion(req *rpcRequest) {
+	var p CompletionParams
+	if !decode(req.ID, req.Params, &p, s) {
+		return
+	}
+	if h, ok := s.handler.(Completer); ok {
+		if result, err := h.Complete(&p); err == nil {
+			s.RespondOK(req.ID, result)
+		} else {
+			s.RespondErr(req.ID, codeInternalError, err.Error())
+		}
+	} else {
+		// Return empty completion list if handler doesn't implement completion
+		s.RespondOK(req.ID, &CompletionList{
+			IsIncomplete: false,
+			Items:        []CompletionItem{},
+		})
 	}
 }
 
