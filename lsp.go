@@ -177,6 +177,7 @@ type ServerCapabilities struct {
 	TextDocumentSync   TextDocumentSync  `json:"textDocumentSync,omitempty"`
 	InlayHintProvider  InlayHintProvider `json:"inlayHintProvider,omitempty"`
 	CompletionProvider CompletionOptions `json:"completionProvider,omitempty"`
+	DefinitionProvider bool              `json:"definitionProvider,omitempty"`
 }
 
 // -- initialize -------------------------------------------------------------
@@ -346,6 +347,18 @@ type CompletionOptions struct {
 	ResolveProvider     bool     `json:"resolveProvider,omitempty"`
 }
 
+// -- definition ---------------------------------------------------------
+
+type DefinitionParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Position     Position               `json:"position"`
+}
+
+type Location struct {
+	URI   string `json:"uri"`
+	Range Range  `json:"range"`
+}
+
 // ---------------------------------------------------------------------------
 //   diagnostics
 // ---------------------------------------------------------------------------
@@ -411,6 +424,10 @@ type InlayHinter interface {
 
 type Completer interface {
 	Complete(p *CompletionParams) (*CompletionList, error)
+}
+
+type Definer interface {
+	Definition(p *DefinitionParams) ([]Location, error)
 }
 
 // ========================== Server engine ==================================
@@ -550,6 +567,8 @@ func (s *Server) dispatch(req *rpcRequest) {
 		s.handleInlayHint(req)
 	case "textDocument/completion":
 		s.handleCompletion(req)
+	case "textDocument/definition":
+		s.handleDefinition(req)
 	default:
 		if req.ID != nil {
 			s.RespondErr(req.ID, codeMethodNotFound, "unknown method: "+req.Method)
@@ -709,6 +728,23 @@ func (s *Server) handleCompletion(req *rpcRequest) {
 			IsIncomplete: false,
 			Items:        []CompletionItem{},
 		})
+	}
+}
+
+func (s *Server) handleDefinition(req *rpcRequest) {
+	var p DefinitionParams
+	if !decode(req.ID, req.Params, &p, s) {
+		return
+	}
+	if h, ok := s.handler.(Definer); ok {
+		if locations, err := h.Definition(&p); err == nil {
+			s.RespondOK(req.ID, locations)
+		} else {
+			s.RespondErr(req.ID, codeInternalError, err.Error())
+		}
+	} else {
+		// Return empty array if handler doesn't implement definition
+		s.RespondOK(req.ID, []Location{})
 	}
 }
 
