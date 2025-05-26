@@ -87,6 +87,34 @@ type Range struct {
 	End   Position `json:"end"`
 }
 
+func (r Range) Contains(pos Position) bool {
+	// Position is before the range start
+	if pos.Line < r.Start.Line {
+		return false
+	}
+
+	// Position is after the range end
+	if pos.Line > r.End.Line {
+		return false
+	}
+
+	// Position is on the start line
+	if pos.Line == r.Start.Line {
+		if pos.Character < r.Start.Character {
+			return false
+		}
+	}
+
+	// Position is on the end line
+	if pos.Line == r.End.Line {
+		if pos.Character >= r.End.Character {
+			return false
+		}
+	}
+
+	return true
+}
+
 type MarkupContent struct {
 	Kind  string `json:"kind"`
 	Value string `json:"value"`
