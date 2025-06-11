@@ -777,9 +777,8 @@ func (s *Server) handleDefinition(req *rpcRequest) {
 }
 
 func (s *Server) PublishDiagnostics(uri string, diags []Diagnostic) {
-	// Make sure we never pass a nil slice
-	if diags == nil {
-		diags = make([]Diagnostic, 0)
+	if len(diags) == 0 {
+		return // No diagnostics to publish
 	}
 	_ = s.Notify("textDocument/publishDiagnostics",
 		PublishDiagnosticsParams{
