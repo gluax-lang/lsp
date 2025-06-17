@@ -206,6 +206,7 @@ type ServerCapabilities struct {
 	InlayHintProvider  InlayHintProvider `json:"inlayHintProvider,omitempty"`
 	CompletionProvider CompletionOptions `json:"completionProvider,omitempty"`
 	DefinitionProvider bool              `json:"definitionProvider,omitempty"`
+	ReferencesProvider bool              `json:"referencesProvider,omitempty"`
 }
 
 // -- initialize -------------------------------------------------------------
@@ -387,6 +388,18 @@ type Location struct {
 	Range Range  `json:"range"`
 }
 
+// -- references ---------------------------------------------------------
+
+type ReferenceContext struct {
+	IncludeDeclaration bool `json:"includeDeclaration"`
+}
+
+type ReferenceParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Position     Position               `json:"position"`
+	Context      ReferenceContext       `json:"context"`
+}
+
 // ---------------------------------------------------------------------------
 //   diagnostics
 // ---------------------------------------------------------------------------
@@ -456,6 +469,10 @@ type Completer interface {
 
 type Definer interface {
 	Definition(p *DefinitionParams) ([]Location, error)
+}
+
+type Referencer interface {
+	References(p *ReferenceParams) ([]Location, error)
 }
 
 // ========================== Server engine ==================================
@@ -597,6 +614,8 @@ func (s *Server) dispatch(req *rpcRequest) {
 		s.handleCompletion(req)
 	case "textDocument/definition":
 		s.handleDefinition(req)
+	case "textDocument/references":
+		s.handleReferences(req)
 	default:
 		if req.ID != nil {
 			s.RespondErr(req.ID, codeMethodNotFound, "unknown method: "+req.Method)
@@ -772,6 +791,23 @@ func (s *Server) handleDefinition(req *rpcRequest) {
 		}
 	} else {
 		// Return empty array if handler doesn't implement definition
+		s.RespondOK(req.ID, []Location{})
+	}
+}
+
+func (s *Server) handleReferences(req *rpcRequest) {
+	var p ReferenceParams
+	if !decode(req.ID, req.Params, &p, s) {
+		return
+	}
+	if h, ok := s.handler.(Referencer); ok {
+		if locations, err := h.References(&p); err == nil {
+			s.RespondOK(req.ID, locations)
+		} else {
+			s.RespondErr(req.ID, codeInternalError, err.Error())
+		}
+	} else {
+		// Return empty array if handler doesn't implement references
 		s.RespondOK(req.ID, []Location{})
 	}
 }
