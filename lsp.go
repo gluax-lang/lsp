@@ -350,13 +350,13 @@ const (
 )
 
 type CompletionItem struct {
-	Label         string              `json:"label"`
-	Kind          *CompletionItemKind `json:"kind,omitempty"`
-	Detail        *string             `json:"detail,omitempty"`
-	Documentation *MarkupContent      `json:"documentation,omitempty"`
-	FilterText    *string             `json:"filterText,omitempty"`
-	InsertText    *string             `json:"insertText,omitempty"`
-	SortText      *string             `json:"sortText,omitempty"`
+	Label         string             `json:"label"`
+	Kind          CompletionItemKind `json:"kind,omitzero"`
+	Detail        string             `json:"detail,omitzero"`
+	Documentation MarkupContent      `json:"documentation,omitzero"`
+	FilterText    string             `json:"filterText,omitzero"`
+	InsertText    string             `json:"insertText,omitzero"`
+	SortText      string             `json:"sortText,omitzero"`
 }
 
 type CompletionParams struct {
