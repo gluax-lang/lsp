@@ -349,14 +349,22 @@ const (
 	CompletionItemKindTypeParameter CompletionItemKind = 25
 )
 
+type InsertTextFormat int
+
+const (
+	InsertTextFormatPlainText InsertTextFormat = 1
+	InsertTextFormatSnippet   InsertTextFormat = 2
+)
+
 type CompletionItem struct {
-	Label         string             `json:"label"`
-	Kind          CompletionItemKind `json:"kind,omitzero"`
-	Detail        string             `json:"detail,omitzero"`
-	Documentation MarkupContent      `json:"documentation,omitzero"`
-	FilterText    string             `json:"filterText,omitzero"`
-	InsertText    string             `json:"insertText,omitzero"`
-	SortText      string             `json:"sortText,omitzero"`
+	Label            string             `json:"label"`
+	Kind             CompletionItemKind `json:"kind,omitzero"`
+	Detail           string             `json:"detail,omitzero"`
+	Documentation    MarkupContent      `json:"documentation,omitzero"`
+	FilterText       string             `json:"filterText,omitzero"`
+	InsertText       string             `json:"insertText,omitzero"`
+	SortText         string             `json:"sortText,omitzero"`
+	InsertTextFormat InsertTextFormat   `json:"insertTextFormat,omitzero"`
 }
 
 type CompletionParams struct {
